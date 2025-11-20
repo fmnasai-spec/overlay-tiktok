@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Coin Match Auction Overlay + Control</title>
+<style>
+:root{
+  --bg:#1b0522;
+  --card:#2a1130;
+  --accent:#f7c948;
+  --muted:#cfcfcf;
+  --panel:#190016;
+  --glass: rgba(255,255,255,0.03);
+  --gold:#ffd66b;
+  --silver:#a7a7a7;
+  --bronze:#c07a2b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Arial;background:transparent;color:#fff}
+.container{display:flex;gap:20px;padding:18px;align-items:flex-start}
+/* VIEWER CARD */
+.viewer{
+  width:520px;
+  background:linear-gradient(180deg,var(--card),#331233);
+  border-radius:16px;padding:18px;border:3px solid rgba(255,255,255,0.03);
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  pointer-events:none;
+}
+.title{background:rgba(0,0,0,0.25);padding:8px 14px;border-radius:10px;font-weight:700;text-align:center;margin-bottom:14px}
+.stage{display:flex;gap:12px;align-items:end;justify-content:center;padding:12px 6px}
+.podium{display:flex;gap:12px;align-items:end;justify-content:center}
+.place{width:140px;min-height:120px;border-radius:12px;display:flex;flex-direction:column;align-items:center;padding:8px 6px;position:relative}
+.place .rankBadge{position:absolute;top:-12px;font-weight:800;padding:6px 10px;border-radius:10px}
+.place .rank1{left:calc(50% - 70px);transform:translateX(-50%);background:linear-gradient(180deg,var(--gold),#e6b24a);color:#111}
+.place .rank2{left:6px;background:linear-gradient(180deg,var(--silver),#9aa);color:#111}
+.place .rank3{right:6px;background:linear-gradient(180deg,var(--bronze),#b86a2a);color:#111}
+.box{width:100%;background:linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.32));border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(180deg,#fff3,#fff6);display:flex;align-items:center;justify-content:center;color:#111;font-weight:800;font-size:22px;border:3px solid rgba(0,0,0,0.2)}
+.name{font-weight:800}
+.coins{background:rgba(0,0,0,0.4);padding:6px 10px;border-radius:999px;font-weight:700;font-size:13px;color:var(--muted)}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+.progress{height:10px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;margin-top:10px}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#ff9a2b);width:0%}
+
+/* CONTROL PANEL (admin) */
+.panel{
+  width:420px;
+  background:linear-gradient(180deg,var(--panel),#2a001f);
+  border-radius:12px;padding:12px;border:2px solid rgba(255,255,255,0.03);
+  box-shadow:0 8px 20px rgba(0,0,0,0.6);
+  pointer-events:auto;
+}
+.panel h3{margin:0 0 8px 0;font-size:18px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.controls button, .controls input, .controls select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff}
+.controls .full{grid-column:1 / -1}
+.row{display:flex;gap:8px;margin-top:8px}
+
+.small{font-size:13px;color:var(--muted);margin-top:8px}
+
+/* responsive */
+@media (max-width:1100px){.container{flex-direction:column}.viewer,.panel{width:100%}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="viewer" id="viewer">
+    <div class="title">Coin Match</div>
+    <div class="stage">
+      <div class="podium" id="podium">
+        <div class="place" data-place="2">
+          <div class="rankBadge rank2">2</div>
+          <div class="box">
+            <div class="avatar" id="avatar2">U2</div>
+            <div class="name" id="name2">-</div>
+            <div class="coins" id="coins2">0</div>
+          </div>
+        </div>
+        <div class="place" data-place="1">
+          <div class="rankBadge rank1">1</div>
+          <div class="box">
+            <div class="avatar" id="avatar1">U1</div>
+            <div class="name" id="name1">-</div>
+            <div class="coins" id="coins1">0</div>
+          </div>
+        </div>
+        <div class="place" data-place="3">
+          <div class="rankBadge rank3">3</div>
+          <div class="box">
+            <div class="avatar" id="avatar3">U3</div>
+            <div class="name" id="name3">-</div>
+            <div class="coins" id="coins3">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="viewerProg"></i></div>
+    <div class="footer"><div id="participants">0 Participants</div><div id="timerView">00:00</div></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <h3>Admin Panel — Coin Match</h3>
+    <div class="controls">
+      <button id="startBtn">Start Match</button>
+      <button id="endBtn">End Match</button>
+      <button id="resetBtn">Reset Match</button>
+      <button id="showWinnersBtn">Show Winners</button>
+      <input id="timerInput" type="number" value="120" min="10" step="10" />
+      <select id="modeSelect"><option value="all">Count all gifts</option></select>
+      <input id="simUser" placeholder="username (sim)" />
+      <input id="simAmt" placeholder="amount (sim)" type="number" value="1" />
+      <button id="simAdd" class="full">Simulate Gift</button>
+    </div>
+
+    <div class="row small">
+      <div>Top gifter list updates live. Use "Simulate Gift" to test.</div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <button id="copyURL" class="full">Copy Overlay URL (for OBS / TikTok)</button>
+    </div>
+
+    <div class="small">Integration: you can send postMessage to this page from TikFinity or your bot:<br/>
+    <code>window.postMessage({type:'gift',username:'name',amount:1}, '*')</code></div>
+  </div>
+</div>
+
+<script>
+// Core logic
+let running=false;
+let remaining=120;
+let timerInterval=null;
+
+const bidders = new Map();
+let total=0;
+
+const ui = {
+  name1: document.getElementById('name1'),
+  name2: document.getElementById('name2'),
+  name3: document.getElementById('name3'),
+  coins1: document.getElementById('coins1'),
+  coins2: document.getElementById('coins2'),
+  coins3: document.getElementById('coins3'),
+  avatar1: document.getElementById('avatar1'),
+  avatar2: document.getElementById('avatar2'),
+  avatar3: document.getElementById('avatar3'),
+  prog: document.getElementById('viewerProg'),
+  participants: document.getElementById('participants'),
+  timerView: document.getElementById('timerView')
+};
+
+function formatTime(s){ const mm = String(Math.floor(s/60)).padStart(2,'0'); const ss = String(s%60).padStart(2,'0'); return mm+':'+ss; }
+
+function refreshUI(){
+  const arr = Array.from(bidders.entries()).sort((a,b)=>b[1]-a[1]);
+  const top = arr.slice(0,3);
+  for(let i=1;i<=3;i++){
+    const item = top[i-1];
+    if(item){
+      ui['name'+i].textContent = item[0];
+      ui['coins'+i].textContent = item[1] + ' coins';
+      ui['avatar'+i].textContent = (item[0][0]||'?').toUpperCase();
+    } else {
+      ui['name'+i].textContent = '-';
+      ui['coins'+i].textContent = '0';
+      ui['avatar'+i].textContent = i===1?'U1':(i===2?'U2':'U3');
+    }
+  }
+  ui.participants.textContent = bidders.size + ' Participants';
+  const top1 = top[0] ? top[0][1] : 0;
+  const prog = Math.min(100, Math.round((top1/(total||1))*100));
+  ui.prog.style.width = prog + '%';
+}
+
+function addGift(username, amount=1){
+  username = (username||'Anon').toString();
+  amount = Math.max(1, Math.floor(Number(amount)||1));
+  total += amount;
+  bidders.set(username, (bidders.get(username)||0) + amount);
+  refreshUI();
+}
+
+function startMatch(){
+  if(running) return;
+  remaining = Number(document.getElementById('timerInput').value) || 120;
+  running = true;
+  ui.timerView.textContent = formatTime(remaining);
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(()=>{
+    if(remaining>0){ remaining--; ui.timerView.textContent = formatTime(remaining); }
+    else { endMatch(); }
+  },1000);
+}
+
+function endMatch(){
+  running=false;
+  if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  showWinners();
+}
+
+function resetMatch(){
+  running=false;
+  if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  bidders.clear();
+  total=0;
+  refreshUI();
+  ui.timerView.textContent = formatTime(Number(document.getElementById('timerInput').value)||120);
+}
+
+function showWinners(){
+  const arr = Array.from(bidders.entries()).sort((a,b)=>b[1]-a[1]);
+  const win = arr[0] ? arr[0][0] : null;
+  if(win){
+    alert('Winner: ' + win);
+  } else {
+    alert('No participants');
+  }
+}
+
+document.getElementById('simAdd').addEventListener('click',()=>{
+  const u = document.getElementById('simUser').value || ('User'+(Math.floor(Math.random()*99)+1));
+  const a = Number(document.getElementById('simAmt').value) || 1;
+  addGift(u,a);
+});
+document.getElementById('startBtn').addEventListener('click',startMatch);
+document.getElementById('endBtn').addEventListener('click',endMatch);
+document.getElementById('resetBtn').addEventListener('click',resetMatch);
+document.getElementById('showWinnersBtn').addEventListener('click',showWinners);
+
+document.getElementById('copyURL').addEventListener('click',()=>{
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).then(()=> alert('Overlay URL copied: ' + url));
+});
+
+window.addEventListener('message',(ev)=>{
+  try{
+    const data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+    if(data && data.type === 'gift'){
+      addGift(data.username || 'Anon', data.amount || 1);
+      if(document.getElementById('modeSelect').value === 'all'){
+        if(running) remaining = Number(document.getElementById('timerInput').value) || remaining;
+      }
+      refreshUI();
+    }
+  }catch(e){}
+});
+
+window.coinMatch = { addGift, startMatch, endMatch, resetMatch, showWinners };
+
+refreshUI();
+ui.timerView.textContent = formatTime(Number(document.getElementById('timerInput').value)||120);
+</script>
+</body>
+</html>
